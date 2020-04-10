@@ -51,6 +51,7 @@ class XmindUtils(object):
                 # 测试用例标题
                 case_name = '【%s】%s' % (module_prefix, t.get('title'))
                 case_id = t.get('id')
+                case_priority = t.get('markers')[0].split('-')[1]
                 # 测试步骤
                 step_dict = t.get('topics')
                 step_str = ''
@@ -71,7 +72,7 @@ class XmindUtils(object):
                 # print(step_str.rstrip('\n\r'))
                 # print(expecting_str.rstrip('\n\r'))
                 test_case_dict = {'id': case_id, 'name': case_name, 'step': step_str.rstrip('\n\r'),
-                                  'expecting': expecting_str.rstrip('\n\r')}
+                                  'expecting': expecting_str.rstrip('\n\r'), 'priority': case_priority}
                 self._test_cases.append(test_case_dict)
             else:
                 self.parse(t.get('topics'), module_prefix)
