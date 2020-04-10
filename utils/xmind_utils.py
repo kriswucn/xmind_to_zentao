@@ -87,7 +87,7 @@ class XmindUtils(object):
             if root.getSubTopics() is None:
                 continue
             module_prefix = root.getData().get('title')
-            self.save_test_nodes(root.getSubTopics(), module_prefix)
+            self.save_test_nodes(root.getSubTopics())
 
     # 添加测试用例
     def save_test_nodes(self, topics):
