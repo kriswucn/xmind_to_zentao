@@ -6,7 +6,6 @@ import os
 class XmindUtils(object):
     def __init__(self, path):
         self._roots = []
-        self._test_nodes = []
         self._test_cases = []
 
         if not os.path.exists(path):
@@ -16,64 +15,22 @@ class XmindUtils(object):
         self._sheets = self._workbook.getSheets()
 
         for sh in self._sheets:
-            self._roots.append(sh.getRootTopic())
+            self._roots.append(sh.getRootTopic().getData())
 
     @property
     def roots(self):
         return self._roots
 
     @property
-    def test_nodes(self):
-        return self._test_nodes
-
-    @property
-    def test_cases(self):
+    def testcases(self):
         return self._test_cases
-
-    # 测试节点to测试用例
-    def node_to_case(self, node):
-        if node is None:
-            return
-        test_case_dict = {}
-        # the node is test node
-        node_dict = node.getData()
-        test_case_dict.update({'case': node_dict.get('title')})
-        # print(node_dict.get('title'))
-        # step nodes
-        step_nodes = node.getSubTopics()
-        # 遍历步骤
-        # 步骤编号
-        step_num = 1
-
-        # 存放步骤和期望
-        step_str = ''
-        expecting_str = ''
-        for step in step_nodes:
-            step_dict = step.getData()
-            step_str += step_dict.get('title') + '\r\n'
-            # expecting为预期
-            # 只取一个只节点
-            exps = step.getSubTopics()
-            # 有期望的情况
-            if len(exps) > 0:
-                expecting_node = exps[0]
-                expecting_dict = expecting_node.getData()
-                expecting_str += expecting_dict.get('title') + '\r\n'
-
-            # 没有期望的情况
-            else:
-                expecting_str += '\r\n'
-        test_case_dict.update({'step': step_str.rstrip('\r\n'), 'expecting': expecting_str.rstrip('\r\n')})
-
-        self._test_cases.append(test_case_dict)
 
     @staticmethod
     def is_test_case(topic):
         if topic is None:
             raise Exception
 
-        topic_dict = topic.getData()
-        markers = topic_dict.get('markers')
+        markers = topic.get('markers')
 
         for m in markers:
             if m.find('priority') > -1:
@@ -81,18 +38,49 @@ class XmindUtils(object):
 
         return False
 
-    # 解析并添加测试用例
-    def parse(self):
-        for root in self._roots:
-            if root.getSubTopics() is None:
-                continue
-            module_prefix = root.getData().get('title')
-            self.save_test_nodes(root.getSubTopics())
+    # 递归, topic is list type
+    def parse(self, topics, module_prefix):
+        if topics is None or len(topics) == 0:
+            # raise TypeError
+            return
 
-    # 添加测试用例
-    def save_test_nodes(self, topics):
         for t in topics:
+            # 如果是测试用例节点
             if self.is_test_case(t):
-                self._test_nodes.append(t)
+                # todo 解析测试用例的title, step and expecting
+                # 测试用例标题
+                case_name = '【%s】%s' % (module_prefix, t.get('title'))
+                case_id = t.get('id')
+                case_priority = t.get('markers')[0].split('-')[1]
+                # 测试步骤
+                step_dict = t.get('topics')
+                step_str = ''
+                expecting_str = ''
+
+                i = 1
+                for s in step_dict:
+                    step_str += '%d. %s\n\r' % (i, s.get('title'))
+                    i += 1
+                    exp_dict = s.get('topics')
+                    # 该步骤有期望
+                    if exp_dict is not None:
+                        # 只取第一个topic
+                        expecting_str += '%s\n\r' % exp_dict[0].get('title')
+                    else:
+                        expecting_str += '\n\r'
+                #
+                # print(step_str.rstrip('\n\r'))
+                # print(expecting_str.rstrip('\n\r'))
+                test_case_dict = {'id': case_id, 'name': case_name, 'step': step_str.rstrip('\n\r'),
+                                  'expecting': expecting_str.rstrip('\n\r'), 'priority': case_priority}
+                self._test_cases.append(test_case_dict)
             else:
-                self.save_test_nodes(t.getSubTopics())
+                self.parse(t.get('topics'), module_prefix)
+
+    def parse_test_cases(self):
+        if len(self.roots) == 0:
+            raise TypeError()
+
+        for root in self.roots:
+            module_prefix = root.get('title')
+            self.parse(root.get('topics'), module_prefix)
